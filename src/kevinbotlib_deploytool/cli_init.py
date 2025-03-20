@@ -84,7 +84,9 @@ def validate_version(_ctx, _param, value, min_version=None, max_version=None):
     help="Destination directory for Deployfile",
     type=click.Path(file_okay=False, dir_okay=True, writable=True),
 )
-def init(ssh_user: str, ssh_host: str, ssh_port: int, python_version: str, glibc_version: str, arch: str, dest_dir: str):
+def init(
+    ssh_user: str, ssh_host: str, ssh_port: int, python_version: str, glibc_version: str, arch: str, dest_dir: str
+):
     """Initialize a new KevinbotLib DeployTool Deployfile"""
 
     if ssh_port < 1 or ssh_port > 65535:  # noqa: PLR2004

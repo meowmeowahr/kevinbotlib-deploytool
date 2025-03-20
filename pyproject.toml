@@ -24,6 +24,8 @@ classifiers = [
 ]
 dependencies = [
     "click>=8.1.8",
+    "paramiko>=3.5.1",
+    "pydantic>=2.10.6",
     "rich>=13.9.4",
     "toml>=0.10.2",
 ]
