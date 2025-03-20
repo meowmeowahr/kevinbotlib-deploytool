@@ -101,7 +101,3 @@ def init(ssh_host: str, ssh_port: int, python_version: str, glibc_version: str, 
     }
 
     create_deployfile(deployfile_data, dest_dir)
-
-
-if __name__ == "__main__":
-    init()

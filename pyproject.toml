@@ -64,3 +64,9 @@ exclude_lines = [
 
 [project.scripts]
 kevinbotlib-deploytool = "kevinbotlib_deploytool.cli:cli"
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "pytest-cov"
+]

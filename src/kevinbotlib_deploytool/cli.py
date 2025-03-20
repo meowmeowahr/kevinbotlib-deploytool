@@ -4,7 +4,7 @@
 
 import click
 
-from kevinbotlib_deploytool.init import init
+from kevinbotlib_deploytool.cli_init import init
 
 
 @click.group()
