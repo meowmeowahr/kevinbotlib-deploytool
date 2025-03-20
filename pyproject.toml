@@ -1,0 +1,66 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "kevinbotlib-deploytool"
+dynamic = ["version"]
+description = 'KevinbotLib Robot Deployment Tool'
+readme = "README.md"
+requires-python = ">=3.10"
+license = "LGPL-3.0-or-later"
+keywords = []
+authors = [
+  { name = "meowmeowahr", email = "meowmeowahr@gmail.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+dependencies = [
+    "click>=8.1.8",
+    "rich>=13.9.4",
+    "toml>=0.10.2",
+]
+
+[project.urls]
+Documentation = "https://github.com/meowmeowahr/kevinbotlib-deploytool#readme"
+Issues = "https://github.com/meowmeowahr/kevinbotlib-deploytool/issues"
+Source = "https://github.com/meowmeowahr/kevinbotlib-deploytool"
+
+[tool.hatch.version]
+path = "src/kevinbotlib_deploytool/__about__.py"
+
+[tool.hatch.envs.types]
+extra-dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/kevinbotlib_deploytool tests}"
+
+[tool.coverage.run]
+source_pkgs = ["kevinbotlib_deploytool", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/kevinbotlib_deploytool/__about__.py",
+]
+
+[tool.coverage.paths]
+kevinbotlib_deploytool = ["src/kevinbotlib_deploytool", "*/kevinbotlib-deploytool/src/kevinbotlib_deploytool"]
+tests = ["tests", "*/kevinbotlib-deploytool/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]
+
+[project.scripts]
+kevinbotlib-deploytool = "kevinbotlib_deploytool.cli:cli"
