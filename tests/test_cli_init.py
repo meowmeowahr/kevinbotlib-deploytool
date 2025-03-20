@@ -12,6 +12,8 @@ def test_init_command_valid():
         result = runner.invoke(
             init,
             [
+                "--ssh-user",
+                "test",
                 "--ssh-host",
                 "example.com",
                 "--ssh-port",
@@ -37,6 +39,8 @@ def test_init_command_invalid_port():
         result = runner.invoke(
             init,
             [
+                "--ssh-user",
+                "test",
                 "--ssh-host",
                 "example.com",
                 "--ssh-port",
@@ -61,6 +65,8 @@ def test_init_command_invalid_python_version():
         result = runner.invoke(
             init,
             [
+                "--ssh-user",
+                "test",
                 "--ssh-host",
                 "example.com",
                 "--ssh-port",
@@ -85,6 +91,8 @@ def test_init_command_invalid_glibc_version():
         result = runner.invoke(
             init,
             [
+                "--ssh-user",
+                "test",
                 "--ssh-host",
                 "example.com",
                 "--ssh-port",
@@ -112,6 +120,8 @@ def test_init_command_existing_deployfile():
         result = runner.invoke(
             init,
             [
+                "--ssh-user",
+                "test",
                 "--ssh-host",
                 "example.com",
                 "--ssh-port",

@@ -54,6 +54,7 @@ def validate_version(_ctx, _param, value, min_version=None, max_version=None):
 
 
 @click.command()
+@click.option("--ssh-user", prompt="SSH deploy user", help="Target SSH user", type=str)
 @click.option("--ssh-host", prompt="SSH deploy host", help="Target SSH host")
 @click.option("--ssh-port", prompt="SSH deploy port", help="Target SSH port", type=int, default=22)
 @click.option(
@@ -83,7 +84,7 @@ def validate_version(_ctx, _param, value, min_version=None, max_version=None):
     help="Destination directory for Deployfile",
     type=click.Path(file_okay=False, dir_okay=True, writable=True),
 )
-def init(ssh_host: str, ssh_port: int, python_version: str, glibc_version: str, arch: str, dest_dir: str):
+def init(ssh_user: str, ssh_host: str, ssh_port: int, python_version: str, glibc_version: str, arch: str, dest_dir: str):
     """Initialize a new KevinbotLib DeployTool Deployfile"""
 
     if ssh_port < 1 or ssh_port > 65535:  # noqa: PLR2004
@@ -95,6 +96,7 @@ def init(ssh_host: str, ssh_port: int, python_version: str, glibc_version: str, 
             "python_version": python_version,
             "glibc_version": glibc_version,
             "arch": arch.lower(),
+            "user": ssh_user,
             "host": ssh_host,
             "port": ssh_port,
         }
