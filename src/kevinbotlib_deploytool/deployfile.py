@@ -7,6 +7,7 @@ DEPLOYFILE_PATH = Path("Deployfile.toml")
 
 
 class DeployTarget(BaseModel):
+    name: str
     python_version: str = Field(default="3.10")
     glibc_version: str = Field(default="2.36")
     arch: str = Field(default="x64")
