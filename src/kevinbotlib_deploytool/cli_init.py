@@ -1,4 +1,3 @@
-from email.policy import default
 import os
 
 import click
@@ -53,6 +52,7 @@ def validate_version(_ctx, _param, value, min_version=None, max_version=None):
 
     return value
 
+
 def attempt_read_project_name() -> str | None:
     """Attempt to read the project name from pyproject.toml if it exists."""
     pyproject_path = os.path.join(os.getcwd(), "pyproject.toml")
@@ -60,14 +60,17 @@ def attempt_read_project_name() -> str | None:
         return None
 
     try:
-        with open(pyproject_path, "r") as f:
+        with open(pyproject_path) as f:
             pyproject_data = toml.load(f)
             return pyproject_data.get("project", {}).get("name")
     except (toml.TomlDecodeError, KeyError):
         return None
 
+
 @click.command()
-@click.option("--name", prompt="Robot project name", help="Robot project name", type=str, default=attempt_read_project_name())
+@click.option(
+    "--name", prompt="Robot project name", help="Robot project name", type=str, default=attempt_read_project_name()
+)
 @click.option("--ssh-user", prompt="SSH deploy user", help="Target SSH user", type=str)
 @click.option("--ssh-host", prompt="SSH deploy host", help="Target SSH host")
 @click.option("--ssh-port", prompt="SSH deploy port", help="Target SSH port", type=int, default=22)
@@ -99,7 +102,14 @@ def attempt_read_project_name() -> str | None:
     type=click.Path(file_okay=False, dir_okay=True, writable=True),
 )
 def init(
-    name: str, ssh_user: str, ssh_host: str, ssh_port: int, python_version: str, glibc_version: str, arch: str, dest_dir: str
+    name: str,
+    ssh_user: str,
+    ssh_host: str,
+    ssh_port: int,
+    python_version: str,
+    glibc_version: str,
+    arch: str,
+    dest_dir: str,
 ):
     """Initialize a new KevinbotLib DeployTool Deployfile"""
 

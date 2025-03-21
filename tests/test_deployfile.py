@@ -1,4 +1,3 @@
-# tests/test_deployfile.py
 import tempfile
 from pathlib import Path
 
@@ -10,7 +9,13 @@ def test_write_and_read_deployfile():
         path = Path(tmpdir) / "Deployfile.toml"
 
         target = DeployTarget(
-            name="test", python_version="3.11", glibc_version="2.37", arch="aarch64", host="robot.local", port=2222, user="example"
+            name="test",
+            python_version="3.11",
+            glibc_version="2.37",
+            arch="aarch64",
+            host="robot.local",
+            port=2222,
+            user="example",
         )
 
         write_deployfile(target, path)
@@ -53,7 +58,13 @@ def test_from_dict():
 
 def test_to_dict():
     target = DeployTarget(
-        name="test", python_version="3.10", glibc_version="2.36", arch="x64", host="robot.local", port=22, user="example"
+        name="test",
+        python_version="3.10",
+        glibc_version="2.36",
+        arch="x64",
+        host="robot.local",
+        port=22,
+        user="example",
     )
     data = target.to_dict()
     assert "target" in data
