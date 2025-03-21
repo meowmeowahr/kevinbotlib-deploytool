@@ -10,7 +10,7 @@ def test_write_and_read_deployfile():
         path = Path(tmpdir) / "Deployfile.toml"
 
         target = DeployTarget(
-            python_version="3.11", glibc_version="2.37", arch="aarch64", host="robot.local", port=2222
+            python_version="3.11", glibc_version="2.37", arch="aarch64", host="robot.local", port=2222, user="example"
         )
 
         write_deployfile(target, path)
@@ -39,6 +39,7 @@ def test_from_dict():
             "arch": "armhf",
             "host": "example.com",
             "port": 2022,
+            "user": "example",
         }
     }
     target = DeployTarget.from_dict(data)
@@ -50,7 +51,9 @@ def test_from_dict():
 
 
 def test_to_dict():
-    target = DeployTarget(python_version="3.10", glibc_version="2.36", arch="x64", host="robot.local", port=22)
+    target = DeployTarget(
+        python_version="3.10", glibc_version="2.36", arch="x64", host="robot.local", port=22, user="example"
+    )
     data = target.to_dict()
     assert "target" in data
     assert data["target"]["host"] == "robot.local"

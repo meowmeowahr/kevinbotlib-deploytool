@@ -10,6 +10,7 @@ class DeployTarget(BaseModel):
     python_version: str = Field(default="3.10")
     glibc_version: str = Field(default="2.36")
     arch: str = Field(default="x64")
+    user: str
     host: str
     port: int = Field(default=22)
 
@@ -18,7 +19,7 @@ class DeployTarget(BaseModel):
         return cls(**data.get("target", {}))
 
     def to_dict(self) -> dict:
-        return {"target": self.dict()}
+        return {"target": self.model_dump()}
 
 
 def read_deployfile(path: Path = DEPLOYFILE_PATH) -> DeployTarget:
