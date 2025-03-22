@@ -10,7 +10,7 @@ from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 
 @click.group
-def ssh():
+def ssh_group():
     """SSH Key Enrollment Tools"""
 
 
@@ -79,8 +79,8 @@ def list_keys():
 
 
 # Add commands to the group
-ssh.add_command(init)
-ssh.add_command(remove)
-ssh.add_command(list_keys)
-ssh.add_command(apply_key_command)
-ssh.add_command(ssh_test_command)
+ssh_group.add_command(init)
+ssh_group.add_command(remove)
+ssh_group.add_command(list_keys)
+ssh_group.add_command(apply_key_command)
+ssh_group.add_command(ssh_test_command)

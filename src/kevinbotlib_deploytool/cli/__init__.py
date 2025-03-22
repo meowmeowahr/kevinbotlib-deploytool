@@ -4,10 +4,11 @@
 
 import click
 
+from kevinbotlib_deploytool.cli.deps import deps_group
 from kevinbotlib_deploytool.cli.init import init
-from kevinbotlib_deploytool.cli.ssh import ssh
+from kevinbotlib_deploytool.cli.ssh import ssh_group
 from kevinbotlib_deploytool.cli.test import deployfile_test_command
-from kevinbotlib_deploytool.cli.venv import venv
+from kevinbotlib_deploytool.cli.venv import venv_group
 
 
 @click.group()
@@ -16,6 +17,7 @@ def cli():
 
 
 cli.add_command(init)
-cli.add_command(ssh)
+cli.add_command(ssh_group)
 cli.add_command(deployfile_test_command)
-cli.add_command(venv)
+cli.add_command(venv_group)
+cli.add_command(deps_group)

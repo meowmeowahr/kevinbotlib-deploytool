@@ -11,9 +11,9 @@ def test_cli_group():
 
 
 def test_ssh_group():
-    from kevinbotlib_deploytool.cli import ssh
+    from kevinbotlib_deploytool.cli import ssh_group
 
     runner = CliRunner()
-    result = runner.invoke(ssh)
+    result = runner.invoke(ssh_group)
     assert result.exit_code == 0
     assert "SSH Key Enroll" in result.output
