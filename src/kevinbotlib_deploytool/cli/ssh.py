@@ -5,6 +5,7 @@ import rich.tree
 
 from kevinbotlib_deploytool.cli.init import attempt_read_project_name
 from kevinbotlib_deploytool.cli.ssh_apply_key import apply_key_command
+from kevinbotlib_deploytool.cli.test import ssh_test_command
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 
@@ -82,3 +83,4 @@ ssh.add_command(init)
 ssh.add_command(remove)
 ssh.add_command(list_keys)
 ssh.add_command(apply_key_command)
+ssh.add_command(ssh_test_command)
