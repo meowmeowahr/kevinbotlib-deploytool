@@ -1,7 +1,7 @@
 import os
 from tempfile import TemporaryDirectory
 
-from kevinbotlib_deploytool.cli_init import attempt_read_project_name
+from kevinbotlib_deploytool.cli.init import attempt_read_project_name
 
 
 def test_attempt_read_project_name_no_pyproject():

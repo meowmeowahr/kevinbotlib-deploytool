@@ -3,7 +3,7 @@ from tempfile import TemporaryDirectory
 
 from click.testing import CliRunner
 
-from kevinbotlib_deploytool.cli_init import init
+from kevinbotlib_deploytool.cli.init import init
 
 
 def test_init_command_valid():

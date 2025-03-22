@@ -8,7 +8,7 @@ from platformdirs import user_data_dir
 class SSHKeyManager:
     def __init__(self, app_name="SSHKeyManager"):
         # Get the user data directory path for saving keys
-        self.key_dir = user_data_dir(app_name, "YourAppName")
+        self.key_dir = user_data_dir(app_name, "meowmeowahr")
         os.makedirs(self.key_dir, exist_ok=True)
 
     def generate_key(self, key_name):
@@ -78,5 +78,4 @@ class SSHKeyManager:
 
     def list_keys(self):
         """Lists all key names that are available in the key manager."""
-        key_info = self._load_key_info()
-        return key_info
+        return self._load_key_info()

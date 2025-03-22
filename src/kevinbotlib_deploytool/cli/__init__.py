@@ -4,8 +4,8 @@
 
 import click
 
-from kevinbotlib_deploytool.cli_init import init
-from kevinbotlib_deploytool.cli_ssh import ssh
+from kevinbotlib_deploytool.cli.init import init
+from kevinbotlib_deploytool.cli.ssh import ssh
 
 
 @click.group()

@@ -1,7 +1,7 @@
 import pytest
 from click import BadParameter
 
-from kevinbotlib_deploytool.cli_init import validate_version
+from kevinbotlib_deploytool.cli.init import validate_version
 
 
 def test_valid_version():

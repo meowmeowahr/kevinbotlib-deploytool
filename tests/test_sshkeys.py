@@ -3,7 +3,7 @@ import os
 import paramiko
 import pytest
 
-from kevinbotlib_deploytool.sshkeys import SSHKeyManager  # Assuming the original code is in ssh_key_manager.py
+from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 
 @pytest.fixture
