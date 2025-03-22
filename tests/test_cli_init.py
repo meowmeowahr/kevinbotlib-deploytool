@@ -8,7 +8,7 @@ from kevinbotlib_deploytool.cli.init import init
 
 def test_init_command_valid():
     runner = CliRunner()
-    with TemporaryDirectory() as temp_dir:
+    with TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
         result = runner.invoke(
             init,
             [
@@ -35,7 +35,7 @@ def test_init_command_valid():
 
 def test_init_command_invalid_port():
     runner = CliRunner()
-    with TemporaryDirectory() as temp_dir:
+    with TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
         result = runner.invoke(
             init,
             [
@@ -61,7 +61,7 @@ def test_init_command_invalid_port():
 
 def test_init_command_invalid_python_version():
     runner = CliRunner()
-    with TemporaryDirectory() as temp_dir:
+    with TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
         result = runner.invoke(
             init,
             [
@@ -87,7 +87,7 @@ def test_init_command_invalid_python_version():
 
 def test_init_command_invalid_glibc_version():
     runner = CliRunner()
-    with TemporaryDirectory() as temp_dir:
+    with TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
         result = runner.invoke(
             init,
             [
@@ -113,7 +113,7 @@ def test_init_command_invalid_glibc_version():
 
 def test_init_command_existing_deployfile():
     runner = CliRunner()
-    with TemporaryDirectory() as temp_dir:
+    with TemporaryDirectory(ignore_cleanup_errors=True) as temp_dir:
         with open(os.path.join(temp_dir, "Deployfile.toml"), "w") as f:
             f.write("overwrite me")
 
