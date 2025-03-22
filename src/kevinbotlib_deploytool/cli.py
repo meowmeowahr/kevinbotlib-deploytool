@@ -5,6 +5,7 @@
 import click
 
 from kevinbotlib_deploytool.cli_init import init
+from kevinbotlib_deploytool.cli_ssh import ssh
 
 
 @click.group()
@@ -13,3 +14,4 @@ def cli():
 
 
 cli.add_command(init)
+cli.add_command(ssh)
