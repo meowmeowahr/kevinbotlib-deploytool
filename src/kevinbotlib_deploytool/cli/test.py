@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+
 import click
 import paramiko
 from rich.console import Console
@@ -30,7 +31,7 @@ def ssh_test_command(host, port, user, key_name):
     key_info = key_manager.list_keys()
     if key_name not in key_info:
         console.print(f"[red]Key '{key_name}' not found in key manager.[/red]")
-        raise click.Abort()
+        raise click.Abort
 
     private_key_path, _ = key_info[key_name]
 
@@ -39,7 +40,7 @@ def ssh_test_command(host, port, user, key_name):
         pkey = paramiko.RSAKey.from_private_key_file(private_key_path)
     except Exception as e:
         console.print(f"[red]Failed to load private key: {e}[/red]")
-        raise click.Abort()
+        raise click.Abort from e
 
     with rich_spinner("Getting host key"):
         try:
@@ -53,12 +54,12 @@ def ssh_test_command(host, port, user, key_name):
 
     console.print(Panel(f"[yellow]Host key for {host}:\n{host_key.get_base64()}", title="Host Key Confirmation"))
     if not click.confirm("Do you want to continue connecting?"):
-        raise click.Abort()
+        raise click.Abort
 
     with rich_spinner("Connecting via SSH", success_message="SSH Connection Test Completed"):
         try:
             ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # Accept manually confirmed key
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
             ssh.connect(hostname=host, port=port, username=user, pkey=pkey, timeout=10)
 
             _, stdout, _ = ssh.exec_command("echo Hello from $(hostname) 👋")
@@ -68,4 +69,4 @@ def ssh_test_command(host, port, user, key_name):
             ssh.close()
         except Exception as e:
             console.print(f"[red]SSH connection failed: {e!r}[/red]")
-            raise click.Abort()
+            raise click.Abort from e
