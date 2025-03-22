@@ -111,7 +111,7 @@ def init(
     arch: str,
     dest_dir: str,
 ):
-    """Initialize a new KevinbotLib DeployTool Deployfile"""
+    """Initialize a new Deployfile"""
 
     if ssh_port < 1 or ssh_port > 65535:  # noqa: PLR2004
         msg = "SSH port must be between 1 and 65535"
