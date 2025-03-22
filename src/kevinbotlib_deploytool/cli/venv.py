@@ -1,6 +1,6 @@
 import click
 
-from kevinbotlib_deploytool.cli.venv_commands import create_venv_command
+from kevinbotlib_deploytool.cli.venv_create import create_venv_command
 
 
 @click.group()
