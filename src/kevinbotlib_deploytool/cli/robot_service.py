@@ -129,11 +129,180 @@ def uninstall_service(df_directory: str):
 
         console.print("[bold red]Reloading systemd...[/bold red]")
         ssh.exec_command("systemctl --user daemon-reload")
+
+        ssh.close()
         console.print("[bold green]✔ Service uninstalled successfully[/bold green]")
+
+
+@click.command("status")
+@click.option(
+    "-d",
+    "--df-directory",
+    default=".",
+    help="Directory of the Deployfile",
+    type=click.Path(file_okay=False, dir_okay=True, writable=True),
+)
+def status_service(df_directory: str):
+    """Check the status of the robot systemd service"""
+    df = deployfile.read_deployfile(Path(df_directory) / "Deployfile.toml")
+
+    _, pkey = get_private_key(console, df)
+
+    confirm_host_key_df(console, df, pkey)
+
+    with rich_spinner(console, "Checking service status over SSH"):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
+        ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
+
+        check_systemd_ver(ssh)
+        if check_service_file(df, ssh):
+            console.print(
+                f"[yellow]User service file exists at ~/.config/systemd/user/{df.name}.service. Checking status...",
+            )
+        else:
+            console.print(
+                f"[yellow]User service file does not exist at ~/.config/systemd/user/{df.name}.service. Nothing to check.[/yellow]"
+            )
+            return
+
+        console.print("[bold magenta]Checking service status...[/bold magenta]")
+        _, stdout, _ = ssh.exec_command(f"systemctl --user status {df.name}.service")
+        result = stdout.read().decode().strip()
+        if "running" in result:
+            console.print("[bold green]✔ Service is running[/bold green]")
+        elif "inactive" in result:
+            console.print("[bold yellow]⚠️ Service is inactive[/bold yellow]")
+        elif "failed" in result:
+            console.print("[bold red]❌ Service has failed[/bold red]")
+        elif "exited" in result:
+            console.print("[bold yellow]⚠️ Service has exited[/bold yellow]")
+        else:
+            console.print("[bold red]❌ Service status unknown[/bold red]")
+        console.print(result)
+        ssh.close()
+
+
+@click.command("stop")
+@click.option(
+    "-d",
+    "--df-directory",
+    default=".",
+    help="Directory of the Deployfile",
+    type=click.Path(file_okay=False, dir_okay=True, writable=True),
+)
+def stop_service(df_directory: str):
+    """Stop the robot systemd service"""
+    df = deployfile.read_deployfile(Path(df_directory) / "Deployfile.toml")
+
+    _, pkey = get_private_key(console, df)
+
+    confirm_host_key_df(console, df, pkey)
+
+    with rich_spinner(console, "Stopping service over SSH"):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
+        ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
+
+        check_systemd_ver(ssh)
+        if check_service_file(df, ssh):
+            console.print(
+                f"[yellow]User service file exists at ~/.config/systemd/user/{df.name}.service. Stopping service...",
+            )
+        else:
+            console.print(
+                f"[yellow]User service file does not exist at ~/.config/systemd/user/{df.name}.service. Nothing to stop.[/yellow]"
+            )
+            return
+
+        console.print("[bold red]Stopping service...[/bold red]")
+        ssh.exec_command(f"systemctl --user stop {df.name}.service")
+        console.print("[bold green]✔ Service stopped successfully[/bold green]")
+        ssh.close()
+
+
+@click.command("estop")
+@click.option(
+    "-d",
+    "--df-directory",
+    default=".",
+    help="Directory of the Deployfile",
+    type=click.Path(file_okay=False, dir_okay=True, writable=True),
+)
+def estop_service(df_directory: str):
+    """Emergency stop (SIGUSR2) the robot systemd service"""
+    df = deployfile.read_deployfile(Path(df_directory) / "Deployfile.toml")
+
+    _, pkey = get_private_key(console, df)
+
+    confirm_host_key_df(console, df, pkey)
+
+    with rich_spinner(console, "Stopping service over SSH"):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
+        ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
+
+        check_systemd_ver(ssh)
+        if check_service_file(df, ssh):
+            console.print(
+                f"[yellow]User service file exists at ~/.config/systemd/user/{df.name}.service. Stopping service...",
+            )
+        else:
+            console.print(
+                f"[yellow]User service file does not exist at ~/.config/systemd/user/{df.name}.service. Nothing to stop.[/yellow]"
+            )
+            return
+
+        console.print("[bold red]E-Stopping service...[/bold red]")
+        ssh.exec_command(f"systemctl --user kill --signal=SIGUSR2 {df.name}.service")
+        console.print("[bold green]✔ Service stopped successfully[/bold green]")
+        ssh.close()
+
+
+@click.command("start")
+@click.option(
+    "-d",
+    "--df-directory",
+    default=".",
+    help="Directory of the Deployfile",
+    type=click.Path(file_okay=False, dir_okay=True, writable=True),
+)
+def start_service(df_directory: str):
+    """Stop the robot systemd service"""
+    df = deployfile.read_deployfile(Path(df_directory) / "Deployfile.toml")
+
+    _, pkey = get_private_key(console, df)
+
+    confirm_host_key_df(console, df, pkey)
+
+    with rich_spinner(console, "Stopping service over SSH"):
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
+        ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
+
+        check_systemd_ver(ssh)
+        if check_service_file(df, ssh):
+            console.print(
+                f"[yellow]User service file exists at ~/.config/systemd/user/{df.name}.service. Stopping service...",
+            )
+        else:
+            console.print(
+                f"[yellow]User service file does not exist at ~/.config/systemd/user/{df.name}.service. Nothing to stop.[/yellow]"
+            )
+            return
+
+        console.print("[bold red]Stopping service...[/bold red]")
+        ssh.exec_command(f"systemctl --user start {df.name}.service")
+        console.print("[bold green]✔ Service stopped successfully[/bold green]")
+        ssh.close()
 
 
 service_group.add_command(install_service)
 service_group.add_command(uninstall_service)
+service_group.add_command(status_service)
+service_group.add_command(stop_service)
+service_group.add_command(estop_service)
+service_group.add_command(start_service)
 
 
 def check_service_file(df, ssh):
