@@ -1,25 +1,15 @@
-from contextlib import contextmanager
 from pathlib import Path
+
 import click
 import paramiko
-
 from rich.console import Console
 from rich.panel import Panel
 
 from kevinbotlib_deploytool import deployfile
+from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
-
 console = Console()
-
-@contextmanager
-def rich_spinner(message: str, success_message: str | None = None):
-    with console.status(f"[bold green]{message}...", spinner="dots") as spinner:
-        try:
-            yield spinner
-        finally:
-            if success_message:
-                console.print(f"[bold green]\u2714 {success_message}")
 
 
 @click.command("delete")
@@ -51,7 +41,7 @@ def delete_venv_command(df_directory: str):
         console.print(f"[red]Failed to load private key: {e}[/red]")
         raise click.Abort from e
 
-    with rich_spinner("Beginning transport session"):
+    with rich_spinner(console, "Beginning transport session"):
         try:
             sock = paramiko.Transport((df.host, df.port))
             sock.connect(username=df.user, pkey=pkey)
@@ -65,10 +55,10 @@ def delete_venv_command(df_directory: str):
     if not click.confirm("Do you want to continue connecting?"):
         raise click.Abort
 
-    with rich_spinner("Connecting to remote host"):
+    with rich_spinner(console, "Connecting to remote host"):
         try:
             ssh = paramiko.SSHClient()
-            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
             ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
 
             # Check if venv exists
@@ -77,7 +67,9 @@ def delete_venv_command(df_directory: str):
             result = stdout.read().decode().strip()
 
             if result != "exists":
-                console.print(f"[yellow]No virtual environment found at $HOME/{df.name}/env — nothing to delete.[/yellow]")
+                console.print(
+                    f"[yellow]No virtual environment found at $HOME/{df.name}/env — nothing to delete.[/yellow]"
+                )
                 return
 
             # Delete the venv

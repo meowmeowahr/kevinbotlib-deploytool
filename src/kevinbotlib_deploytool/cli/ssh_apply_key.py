@@ -1,21 +1,12 @@
-from contextlib import contextmanager
-
 import click
 import paramiko
 from rich.console import Console
 from rich.panel import Panel
 
+from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 console = Console()
-
-
-@contextmanager
-def rich_spinner(message: str, success_message: str | None = None):
-    with console.status(f"[bold green]{message}...", spinner="dots"):
-        yield
-    if success_message:
-        console.print(f"[bold green]\u2714 {success_message}")
 
 
 @click.command("apply-key")
@@ -50,7 +41,7 @@ def apply_key_command(host, user, password, name, port):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.RejectPolicy())  # Reject unknown host keys
 
-    with rich_spinner("Getting host key"):
+    with rich_spinner(console, "Getting host key"):
         try:
             sock = paramiko.Transport((host, port))
             sock.connect(username=user, password=password)
@@ -67,7 +58,7 @@ def apply_key_command(host, user, password, name, port):
         paramiko.AutoAddPolicy()  # noqa: S507
     )  # * this is ok, because the user is asked beforehand
 
-    with rich_spinner("Connecting to remote host", success_message="Connected"):
+    with rich_spinner(console, "Connecting to remote host", success_message="Connected"):
         try:
             ssh.connect(
                 hostname=host,
@@ -83,7 +74,7 @@ def apply_key_command(host, user, password, name, port):
             raise click.Abort from e
 
     def exec_cmd(cmd, desc=None):
-        with rich_spinner(desc or f"Running: {cmd}"):
+        with rich_spinner(console, desc or f"Running: {cmd}"):
             stdin, stdout, stderr = ssh.exec_command(cmd)
             exit_status = stdout.channel.recv_exit_status()
             if exit_status != 0:

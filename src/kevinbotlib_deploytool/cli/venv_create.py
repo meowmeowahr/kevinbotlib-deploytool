@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from pathlib import Path
 
 import click
@@ -7,6 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from kevinbotlib_deploytool import deployfile
+from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 console = Console()
@@ -86,16 +86,6 @@ def check_py_version(python_location, ssh):
     return output
 
 
-@contextmanager
-def rich_spinner(message: str, success_message: str | None = None):
-    with console.status(f"[bold green]{message}...", spinner="dots") as spinner:
-        try:
-            yield spinner
-        finally:
-            if success_message:
-                console.print(f"[bold green]\u2714 {success_message}")
-
-
 @click.command("create")
 @click.option(
     "-d",
@@ -134,7 +124,7 @@ def create_venv_command(df_directory: str, python_location):
         console.print(f"[red]Failed to load private key: {e}[/red]")
         raise click.Abort from e
 
-    with rich_spinner("Beginning transport session"):
+    with rich_spinner(console, "Beginning transport session"):
         try:
             sock = paramiko.Transport((df.host, df.port))
             sock.connect(username=df.user, pkey=pkey)
@@ -148,7 +138,7 @@ def create_venv_command(df_directory: str, python_location):
     if not click.confirm("Do you want to continue connecting?"):
         raise click.Abort
 
-    with rich_spinner("Running commands via SSH") as spinner:
+    with rich_spinner(console, "Running commands via SSH") as spinner:
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand

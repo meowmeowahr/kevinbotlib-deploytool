@@ -1,4 +1,3 @@
-from contextlib import contextmanager
 from pathlib import Path
 
 import click
@@ -7,19 +6,10 @@ from rich.console import Console
 from rich.panel import Panel
 
 from kevinbotlib_deploytool import deployfile
+from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 console = Console()
-
-
-@contextmanager
-def rich_spinner(message: str, success_message: str | None = None):
-    with console.status(f"[bold green]{message}...", spinner="dots"):
-        try:
-            yield
-        finally:
-            if success_message:
-                console.print(f"[bold green]\u2714 {success_message}")
 
 
 @click.command("test")
@@ -44,7 +34,7 @@ def ssh_test_command(host, port, user, key_name):
         console.print(f"[red]Failed to load private key: {e}[/red]")
         raise click.Abort from e
 
-    with rich_spinner("Beginning transport session"):
+    with rich_spinner(console, "Beginning transport session"):
         try:
             sock = paramiko.Transport((host, port))
             sock.connect(username=user, pkey=pkey)
@@ -58,7 +48,7 @@ def ssh_test_command(host, port, user, key_name):
     if not click.confirm("Do you want to continue connecting?"):
         raise click.Abort
 
-    with rich_spinner("Connecting via SSH", success_message="SSH Connection Test Completed"):
+    with rich_spinner(console, "Connecting via SSH", success_message="SSH Connection Test Completed"):
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
@@ -105,7 +95,7 @@ def deployfile_test_command(directory: str):
         console.print(f"[red]Failed to load private key: {e}[/red]")
         raise click.Abort from e
 
-    with rich_spinner("Beginning transport session"):
+    with rich_spinner(console, "Beginning transport session"):
         try:
             sock = paramiko.Transport((df.host, df.port))
             sock.connect(username=df.user, pkey=pkey)
@@ -119,7 +109,7 @@ def deployfile_test_command(directory: str):
     if not click.confirm("Do you want to continue connecting?"):
         raise click.Abort
 
-    with rich_spinner("Fetching data via SSH"):
+    with rich_spinner(console, "Fetching data via SSH"):
         try:
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
