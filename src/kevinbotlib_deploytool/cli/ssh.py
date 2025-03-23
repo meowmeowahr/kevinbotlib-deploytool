@@ -9,7 +9,7 @@ from kevinbotlib_deploytool.cli.test import ssh_test_command
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 
-@click.group
+@click.group("ssh")
 def ssh_group():
     """SSH Key Enrollment Tools"""
 

@@ -4,7 +4,6 @@
 
 import click
 
-from kevinbotlib_deploytool.cli.deps import deps_group
 from kevinbotlib_deploytool.cli.init import init
 from kevinbotlib_deploytool.cli.ssh import ssh_group
 from kevinbotlib_deploytool.cli.test import deployfile_test_command
@@ -20,4 +19,3 @@ cli.add_command(init)
 cli.add_command(ssh_group)
 cli.add_command(deployfile_test_command)
 cli.add_command(venv_group)
-cli.add_command(deps_group)
