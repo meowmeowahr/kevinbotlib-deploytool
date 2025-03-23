@@ -42,9 +42,11 @@ def install_service(df_directory):
 
         # Check if systemd is available
         check_systemd_ver(ssh)
-
-        # Check if the service file already exists
-        check_service_file(df, ssh)
+        
+        if check_service_file(df, ssh):
+            console.print(
+                f"[yellow]User service file already exists at ~/.config/systemd/user/{df.name}.service. Overwriting...",
+            )
 
         # Create the service file
         # Use Jinja2 to render the service file
@@ -94,7 +96,7 @@ def uninstall_service(df_directory: str):
     """Uninstall the robot systemd service"""
     df = deployfile.read_deployfile(Path(df_directory) / "Deployfile.toml")
 
-    private_key_path, pkey = get_private_key(console, df)
+    _, pkey = get_private_key(console, df)
 
     confirm_host_key_df(console, df, pkey)
 
@@ -104,7 +106,15 @@ def uninstall_service(df_directory: str):
         ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
         
         check_systemd_ver(ssh)
-        check_service_file(df, ssh)
+        if check_service_file(df, ssh):
+            console.print(
+                f"[yellow]User service file exists at ~/.config/systemd/user/{df.name}.service. Uninstalling...",
+            )
+        else:
+            console.print(
+                f"[yellow]User service file does not exist at ~/.config/systemd/user/{df.name}.service. Nothing to uninstall.[/yellow]"
+            )
+            return
 
         console.print("[bold red]Stopping service...[/bold red]")
         ssh.exec_command(f"systemctl --user stop {df.name}.service")
@@ -134,9 +144,8 @@ def check_service_file(df, ssh):
     _, stdout, _ = ssh.exec_command(check_cmd)
     result = stdout.read().decode().strip()
     if result == "exists":
-        console.print(
-            f"[yellow]User service file already exists at ~/.config/systemd/user/{df.name}.service. Overwriting...",
-        )
+        return True
+    return False
 
 
 def check_systemd_ver(ssh: paramiko.SSHClient):
