@@ -152,7 +152,34 @@ def deployfile_test_command(directory: str):
                     f"[bold yellow]Remote glibc version does not match Deployfile:[/bold yellow] {glibc_version}!={df.glibc_version}"
                 )
 
+            # python
+            # check if the venv exists
+            check_env(df, ssh)
+
+            # check if the python version matches
+            _, stdout, _ = ssh.exec_command(f"$HOME/{df.name}/env/bin/python --version")
+            python_version = stdout.read().decode().strip().split(" ")[-1]
+            console.print(f"[bold magenta]Remote Python version:[/bold magenta] {python_version}")
+            if ".".join(python_version.split(".")[:2]) == ".".join(df.python_version.split(".")[:2]):
+                console.print(
+                    f"[bold green]Remote robot environment Python version matches Deployfile:[/bold green] {'.'.join(python_version.split('.')[:2])}=={'.'.join(df.python_version.split('.')[:2])}"
+                )
+            else:
+                console.print(
+                    f"[bold yellow]Remote robot environment Python version does not match Deployfile:[/bold yellow] {'.'.join(python_version.split('.')[:2])}!={'.'.join(df.python_version.split('.')[:2])}"
+                )
+
             ssh.close()
         except Exception as e:
+            if isinstance(e, click.Abort):
+                raise click.Abort from e
             console.print(f"[red]SSH connection failed: {e!r}[/red]")
             raise click.Abort from e
+
+
+def check_env(df, ssh):
+    _, stdout, _ = ssh.exec_command(f"ls $HOME/{df.name}/env")
+    venv_exists = stdout.read().decode().strip()
+    if not venv_exists:
+        console.print("[bold red]Remote robot virtual environment does not exist[/bold red]")
+        raise click.Abort

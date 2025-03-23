@@ -49,14 +49,14 @@ def run_py_test(spinner, ssh):
     console.print("[bold green]✔ Test command ran successfully[/bold green]")
 
 
-def check_venv_exists(ssh):
-    _, stdout, stderr = ssh.exec_command("ls $HOME/robotenv")
+def check_venv_exists(ssh, df):
+    _, stdout, stderr = ssh.exec_command(f"ls $HOME/{df.name}/env")
     output = stdout.read().decode().strip()
     error = stderr.read().decode().strip()
     if output:
-        console.print("[red]Virtual environment already exists at $HOME/robotenv[/red]")
+        console.print(f"[red]Virtual environment already exists at $HOME/{df.name}/env[/red]")
         raise click.Abort
-    console.print("Virtual environment does not exist at $HOME/robotenv, creating it...")
+    console.print(f"Virtual environment does not exist at $HOME/{df.name}/env, creating it...")
     return error
 
 
@@ -164,20 +164,20 @@ def create_venv_command(df_directory: str, python_location):
             compare_py_version_df(df, output)
 
             # Check if the virtual environment already exists
-            check_venv_exists(ssh)
+            check_venv_exists(ssh, df)
 
             # Check if the Python installation contains venv
             output = check_venv(ssh, python_location)
 
             # Create the virtual environment
             spinner.status = "Creating virtual environment"
-            ssh.exec_command(f"{python_location} -m venv $HOME/robotenv")
+            ssh.exec_command(f"{python_location} -m venv $HOME/{df.name}/env")
             spinner.status = "Virtual environment created"
             console.print("[bold green]✔ Virtual environment created successfully[/bold green]")
 
             # Activate the virtual environment
             spinner.status = "Activating virtual environment"
-            ssh.exec_command("source $HOME/robotenv/bin/activate")
+            ssh.exec_command(f"source $HOME/{df.name}/env/bin/activate")
             spinner.status = "Virtual environment activated"
             console.print("[bold green]✔ Virtual environment activated successfully[/bold green]")
 
