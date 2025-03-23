@@ -3,7 +3,6 @@ from pathlib import Path
 import click
 import paramiko
 from rich.console import Console
-from rich.panel import Panel
 
 from kevinbotlib_deploytool import deployfile
 from kevinbotlib_deploytool.cli.common import confirm_host_key_df
