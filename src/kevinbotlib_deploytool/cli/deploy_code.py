@@ -15,7 +15,7 @@ from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 console = Console()
 
 
-@click.command("deploy-code")
+@click.command("deploy")
 @click.option(
     "-d",
     "--directory",
