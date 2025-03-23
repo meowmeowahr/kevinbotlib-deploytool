@@ -17,6 +17,7 @@ from kevinbotlib_deploytool.cli.venv import venv_group
 
 
 @click.group()
+@click.version_option()
 def cli():
     """KevinbotLib Deploy Tool"""
 
