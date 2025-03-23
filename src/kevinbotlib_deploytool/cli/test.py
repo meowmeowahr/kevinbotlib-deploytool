@@ -6,6 +6,7 @@ from rich.console import Console
 from rich.panel import Panel
 
 from kevinbotlib_deploytool import deployfile
+from kevinbotlib_deploytool.cli.common import confirm_host_key
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
@@ -34,19 +35,7 @@ def ssh_test_command(host, port, user, key_name):
         console.print(f"[red]Failed to load private key: {e}[/red]")
         raise click.Abort from e
 
-    with rich_spinner(console, "Beginning transport session"):
-        try:
-            sock = paramiko.Transport((host, port))
-            sock.connect(username=user, pkey=pkey)
-            host_key = sock.get_remote_server_key()
-            sock.close()
-        except Exception as e:
-            console.print(Panel(f"[red]Failed to get host key: {e}", title="Host Key Error"))
-            raise click.Abort from e
-
-    console.print(Panel(f"[yellow]Host key for {host}:\n{host_key.get_base64()}", title="Host Key Confirmation"))
-    if not click.confirm("Do you want to continue connecting?"):
-        raise click.Abort
+    confirm_host_key(console, host, user, port)
 
     with rich_spinner(console, "Connecting via SSH", success_message="SSH Connection Test Completed"):
         try:

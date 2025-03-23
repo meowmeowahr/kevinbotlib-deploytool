@@ -4,10 +4,12 @@ from pathlib import Path
 
 import click
 import paramiko
+import toml
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
+from kevinbotlib_deploytool.cli.common import confirm_host_key_df
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.deployfile import read_deployfile
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
@@ -32,10 +34,10 @@ def deploy_code_command(directory):
 
     df = read_deployfile(deployfile_path)
 
-    # check for src/name/__init__.py
+    # check for src/name/__main__.py
     src_path = Path(directory) / "src" / df.name.replace("-", "_")
-    if not (src_path / "__init__.py").exists():
-        console.print(f"[red]Robot code is invalid: must contain {src_path / '__init__.py'}[/red]")
+    if not (src_path / "__main__.py").exists():
+        console.print(f"[red]Robot code is invalid: must contain {src_path / '__main__.py'}[/red]")
         raise click.Abort
 
     # check for pyproject.toml
@@ -59,7 +61,7 @@ def deploy_code_command(directory):
         console.print(f"[red]Failed to load private key: {e}[/red]")
         raise click.Abort from e
 
-    verify_host_key(console, df, pkey)
+    confirm_host_key_df(console, df, pkey)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
@@ -79,6 +81,12 @@ def deploy_code_command(directory):
                 pyproject_path = project_root / "pyproject.toml"
                 if pyproject_path.exists():
                     tar.add(pyproject_path, arcname="pyproject.toml")
+                    # this is to be compatible with hatchling
+                    pyproject = toml.load(pyproject_path)
+                    if "project" in pyproject and "readme" in pyproject["project"]:
+                        readme_path = project_root / pyproject["project"]["readme"]
+                        if readme_path.exists():
+                            tar.add(readme_path, arcname=readme_path.name, filter=_exclude_pycache)
 
         with rich_spinner(console, "Connecting via SSH", success_message="SSH connection established"):
             ssh = paramiko.SSHClient()
@@ -121,24 +129,22 @@ def deploy_code_command(directory):
             ssh.exec_command(f"mkdir -p {remote_code_dir} && tar -xzf {remote_tarball_path} -C {remote_code_dir}")
             ssh.exec_command(f"rm {remote_tarball_path}")
 
+        # Install code via pip install -e
+        cmd = f"~/{df.name}/env/bin/python3 -m pip install -e {remote_code_dir}"
+        stdin, stdout, stderr = ssh.exec_command(cmd)
+        with console.status("[bold green]Installing code...[/bold green]"):
+            while not stdout.channel.exit_status_ready():
+                line = stdout.readline()
+                if line:
+                    console.print(line.strip())
+        exit_code = stdout.channel.recv_exit_status()
+        if exit_code != 0:
+            error = stderr.read().decode()
+            console.print(Panel(f"[red]Command failed: {cmd}\n\n{error}", title="Command Error"))
+            raise click.Abort
+
         console.print(f"[bold green]\u2714 Robot code deployed to {remote_code_dir}[/bold green]")
         ssh.close()
-
-
-def verify_host_key(console, df, pkey):
-    with rich_spinner(console, "Beginning transport session"):
-        try:
-            sock = paramiko.Transport((df.host, df.port))
-            sock.connect(username=df.user, pkey=pkey)
-            host_key = sock.get_remote_server_key()
-            sock.close()
-        except Exception as e:
-            console.print(Panel(f"[red]Failed to get host key: {e}", title="Host Key Error"))
-            raise click.Abort from e
-
-    console.print(Panel(f"[yellow]Host key for {df.host}:\n{host_key.get_base64()}", title="Host Key Confirmation"))
-    if not click.confirm("Do you want to continue connecting?"):
-        raise click.Abort
 
 
 def _exclude_pycache(tarinfo):

@@ -3,6 +3,7 @@ import paramiko
 from rich.console import Console
 from rich.panel import Panel
 
+from kevinbotlib_deploytool.cli.common import confirm_host_key
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
@@ -41,19 +42,8 @@ def apply_key_command(host, user, password, name, port):
     ssh = paramiko.SSHClient()
     ssh.set_missing_host_key_policy(paramiko.RejectPolicy())  # Reject unknown host keys
 
-    with rich_spinner(console, "Getting host key"):
-        try:
-            sock = paramiko.Transport((host, port))
-            sock.connect(username=user, password=password)
-            host_key = sock.get_remote_server_key()
-            sock.close()
-        except Exception as e:
-            console.print(Panel(f"[red]Failed to get host key: {e}", title="Host Key Error"))
-            raise click.Abort from e
+    confirm_host_key(console, host, user, port)
 
-    console.print(Panel(f"[yellow]Host key for {host}:\n{host_key.get_base64()}", title="Host Key Confirmation"))
-    if not click.confirm("Do you want to continue connecting?"):
-        raise click.Abort
     ssh.set_missing_host_key_policy(
         paramiko.AutoAddPolicy()  # noqa: S507
     )  # * this is ok, because the user is asked beforehand
