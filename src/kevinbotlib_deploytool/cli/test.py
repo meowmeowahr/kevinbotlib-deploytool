@@ -116,48 +116,17 @@ def deployfile_test_command(directory: str):
             ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
 
             # cpu arch
-            _, stdout, _ = ssh.exec_command("uname -m")
-            cpu_arch = stdout.read().decode().strip()
-            console.print(f"[bold magenta]Remote CPU architecture:[/bold magenta] {cpu_arch}")
-            if cpu_arch == df.arch:
-                console.print(
-                    f"[bold green]Remote CPU architecture matches Deployfile:[/bold green] {cpu_arch}=={df.arch}"
-                )
-            else:
-                console.print(
-                    f"[bold yellow]Remote CPU architecture does not match Deployfile:[/bold yellow] {cpu_arch}!={df.arch}"
-                )
+            check_cpu_arch(df, ssh)
 
             # glibc version
-            _, stdout, _ = ssh.exec_command("ldd --version")
-            glibc_version = stdout.read().decode().strip().splitlines()[0].split(" ")[-1]
-            console.print(f"[bold magenta]Remote glibc version:[/bold magenta] {glibc_version}")
-
-            if glibc_version == df.glibc_version:
-                console.print(
-                    f"[bold green]Remote glibc version matches Deployfile:[/bold green] {glibc_version}=={df.glibc_version}"
-                )
-            else:
-                console.print(
-                    f"[bold yellow]Remote glibc version does not match Deployfile:[/bold yellow] {glibc_version}!={df.glibc_version}"
-                )
+            check_glibc_ver(df, ssh)
 
             # python
             # check if the venv exists
             check_env(df, ssh)
 
             # check if the python version matches
-            _, stdout, _ = ssh.exec_command(f"$HOME/{df.name}/env/bin/python --version")
-            python_version = stdout.read().decode().strip().split(" ")[-1]
-            console.print(f"[bold magenta]Remote Python version:[/bold magenta] {python_version}")
-            if ".".join(python_version.split(".")[:2]) == ".".join(df.python_version.split(".")[:2]):
-                console.print(
-                    f"[bold green]Remote robot environment Python version matches Deployfile:[/bold green] {'.'.join(python_version.split('.')[:2])}=={'.'.join(df.python_version.split('.')[:2])}"
-                )
-            else:
-                console.print(
-                    f"[bold yellow]Remote robot environment Python version does not match Deployfile:[/bold yellow] {'.'.join(python_version.split('.')[:2])}!={'.'.join(df.python_version.split('.')[:2])}"
-                )
+            check_py_ver(df, ssh)
 
             ssh.close()
         except Exception as e:
@@ -165,6 +134,47 @@ def deployfile_test_command(directory: str):
                 raise click.Abort from e
             console.print(f"[red]SSH connection failed: {e!r}[/red]")
             raise click.Abort from e
+
+
+def check_py_ver(df, ssh):
+    _, stdout, _ = ssh.exec_command(f"$HOME/{df.name}/env/bin/python --version")
+    python_version = stdout.read().decode().strip().split(" ")[-1]
+    console.print(f"[bold magenta]Remote Python version:[/bold magenta] {python_version}")
+    if ".".join(python_version.split(".")[:2]) == ".".join(df.python_version.split(".")[:2]):
+        console.print(
+            f"[bold green]Remote robot environment Python version matches Deployfile:[/bold green] {'.'.join(python_version.split('.')[:2])}=={'.'.join(df.python_version.split('.')[:2])}"
+        )
+    else:
+        console.print(
+            f"[bold yellow]Remote robot environment Python version does not match Deployfile:[/bold yellow] {'.'.join(python_version.split('.')[:2])}!={'.'.join(df.python_version.split('.')[:2])}"
+        )
+
+
+def check_glibc_ver(df, ssh):
+    _, stdout, _ = ssh.exec_command("ldd --version")
+    glibc_version = stdout.read().decode().strip().splitlines()[0].split(" ")[-1]
+    console.print(f"[bold magenta]Remote glibc version:[/bold magenta] {glibc_version}")
+
+    if glibc_version == df.glibc_version:
+        console.print(
+            f"[bold green]Remote glibc version matches Deployfile:[/bold green] {glibc_version}=={df.glibc_version}"
+        )
+    else:
+        console.print(
+            f"[bold yellow]Remote glibc version does not match Deployfile:[/bold yellow] {glibc_version}!={df.glibc_version}"
+        )
+
+
+def check_cpu_arch(df, ssh):
+    _, stdout, _ = ssh.exec_command("uname -m")
+    cpu_arch = stdout.read().decode().strip()
+    console.print(f"[bold magenta]Remote CPU architecture:[/bold magenta] {cpu_arch}")
+    if cpu_arch == df.arch:
+        console.print(f"[bold green]Remote CPU architecture matches Deployfile:[/bold green] {cpu_arch}=={df.arch}")
+    else:
+        console.print(
+            f"[bold yellow]Remote CPU architecture does not match Deployfile:[/bold yellow] {cpu_arch}!={df.arch}"
+        )
 
 
 def check_env(df, ssh):

@@ -60,10 +60,10 @@ def check_venv_exists(ssh, df):
     return error
 
 
-def compare_py_version_df(df, output):
+def compare_py_version_df(df, version):
     if df.python_version:
         # We only need to get the major and minor version
-        remote_version = output.split()[1].split(".")[:2]
+        remote_version = version.split()[1].split(".")[:2]
         remote_version = ".".join(remote_version)
         if remote_version == df.python_version:
             console.print(
@@ -144,34 +144,19 @@ def create_venv_command(df_directory: str, python_location):
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
             ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
 
-            # Check if the Python location is valid
             check_py_location(ssh, python_location)
 
-            # Check version
             output = check_py_version(python_location, ssh)
-
-            # Compare it with Deployfile
             compare_py_version_df(df, output)
 
-            # Check if the virtual environment already exists
             check_venv_exists(ssh, df)
 
-            # Check if the Python installation contains venv
-            output = check_venv(ssh, python_location)
+            check_venv(ssh, python_location)
 
-            # Create the virtual environment
-            spinner.status = "Creating virtual environment"
-            ssh.exec_command(f"{python_location} -m venv $HOME/{df.name}/env")
-            spinner.status = "Virtual environment created"
-            console.print("[bold green]✔ Virtual environment created successfully[/bold green]")
+            create_remote_env(python_location, df, spinner, ssh)
 
-            # Activate the virtual environment
-            spinner.status = "Activating virtual environment"
-            ssh.exec_command(f"source $HOME/{df.name}/env/bin/activate")
-            spinner.status = "Virtual environment activated"
-            console.print("[bold green]✔ Virtual environment activated successfully[/bold green]")
+            activate_remote_env(df, spinner, ssh)
 
-            # Run a test
             run_py_test(spinner, ssh)
 
             ssh.close()
@@ -179,3 +164,17 @@ def create_venv_command(df_directory: str, python_location):
             if not isinstance(e, click.Abort):
                 console.print(f"[red]SSH connection failed: {e!r}[/red]")
             raise
+
+
+def activate_remote_env(df, spinner, ssh):
+    spinner.status = "Activating virtual environment"
+    ssh.exec_command(f"source $HOME/{df.name}/env/bin/activate")
+    spinner.status = "Virtual environment activated"
+    console.print("[bold green]✔ Virtual environment activated successfully[/bold green]")
+
+
+def create_remote_env(python_location, df, spinner, ssh):
+    spinner.status = "Creating virtual environment"
+    ssh.exec_command(f"{python_location} -m venv $HOME/{df.name}/env")
+    spinner.status = "Virtual environment created"
+    console.print("[bold green]✔ Virtual environment created successfully[/bold green]")

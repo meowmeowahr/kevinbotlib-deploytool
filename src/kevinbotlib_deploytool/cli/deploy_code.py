@@ -59,19 +59,7 @@ def deploy_code_command(directory):
         console.print(f"[red]Failed to load private key: {e}[/red]")
         raise click.Abort from e
 
-    with rich_spinner(console, "Beginning transport session"):
-        try:
-            sock = paramiko.Transport((df.host, df.port))
-            sock.connect(username=df.user, pkey=pkey)
-            host_key = sock.get_remote_server_key()
-            sock.close()
-        except Exception as e:
-            console.print(Panel(f"[red]Failed to get host key: {e}", title="Host Key Error"))
-            raise click.Abort from e
-
-    console.print(Panel(f"[yellow]Host key for {df.host}:\n{host_key.get_base64()}", title="Host Key Confirmation"))
-    if not click.confirm("Do you want to continue connecting?"):
-        raise click.Abort
+    verify_host_key(console, df, pkey)
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
@@ -135,6 +123,22 @@ def deploy_code_command(directory):
 
         console.print(f"[bold green]\u2714 Robot code deployed to {remote_code_dir}[/bold green]")
         ssh.close()
+
+
+def verify_host_key(console, df, pkey):
+    with rich_spinner(console, "Beginning transport session"):
+        try:
+            sock = paramiko.Transport((df.host, df.port))
+            sock.connect(username=df.user, pkey=pkey)
+            host_key = sock.get_remote_server_key()
+            sock.close()
+        except Exception as e:
+            console.print(Panel(f"[red]Failed to get host key: {e}", title="Host Key Error"))
+            raise click.Abort from e
+
+    console.print(Panel(f"[yellow]Host key for {df.host}:\n{host_key.get_base64()}", title="Host Key Confirmation"))
+    if not click.confirm("Do you want to continue connecting?"):
+        raise click.Abort
 
 
 def _exclude_pycache(tarinfo):
