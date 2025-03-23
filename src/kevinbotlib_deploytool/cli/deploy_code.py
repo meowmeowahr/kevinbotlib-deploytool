@@ -64,6 +64,10 @@ def deploy_code_command(directory):
                 if assets_path.exists():
                     tar.add(assets_path, arcname="assets", filter=_exclude_pycache)
 
+                deploy_path = project_root / "deploy"
+                if deploy_path.exists():
+                    tar.add(deploy_path, arcname="deploy", filter=_exclude_pycache)
+
                 pyproject_path = project_root / "pyproject.toml"
                 if pyproject_path.exists():
                     tar.add(pyproject_path, arcname="pyproject.toml")
