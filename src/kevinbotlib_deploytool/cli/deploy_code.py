@@ -9,10 +9,9 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 
-from kevinbotlib_deploytool.cli.common import confirm_host_key_df
+from kevinbotlib_deploytool.cli.common import confirm_host_key_df, get_private_key
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.deployfile import read_deployfile
-from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 console = Console()
 
@@ -46,20 +45,7 @@ def deploy_code_command(directory):
         console.print(f"[red]Robot code is invalid: pyproject.toml not found in {directory}[/red]")
         raise click.Abort
 
-    key_manager = SSHKeyManager("KevinbotLibDeployTool")
-    key_info = key_manager.list_keys()
-    if df.name not in key_info:
-        console.print(f"[red]No SSH key for '{df.name}'. Run 'kevinbotlib ssh init' first.[/red]")
-        raise click.Abort
-
-    private_key_path, _ = key_info[df.name]
-
-    # Load private key
-    try:
-        pkey = paramiko.RSAKey.from_private_key_file(private_key_path)
-    except Exception as e:
-        console.print(f"[red]Failed to load private key: {e}[/red]")
-        raise click.Abort from e
+    private_key_path, pkey = get_private_key(console, df)
 
     confirm_host_key_df(console, df, pkey)
 

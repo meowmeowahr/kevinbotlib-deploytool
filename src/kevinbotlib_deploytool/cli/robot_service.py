@@ -6,7 +6,7 @@ import paramiko
 from rich.console import Console
 
 from kevinbotlib_deploytool import deployfile
-from kevinbotlib_deploytool.cli.common import confirm_host_key_df
+from kevinbotlib_deploytool.cli.common import confirm_host_key_df, get_private_key
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.service import ROBOT_SYSTEMD_USER_SERVICE_TEMPLATE
 from kevinbotlib_deploytool.sshkeys import SSHKeyManager
@@ -31,22 +31,7 @@ def install_service(df_directory):
     """Install the robot systemd service"""
     df = deployfile.read_deployfile(Path(df_directory) / "Deployfile.toml")
 
-    key_manager = SSHKeyManager("KevinbotLibDeployTool")
-    key_info = key_manager.list_keys()
-    if df.name not in key_info:
-        console.print(
-            f"[red]Key '{df.name}' not found in key manager. Use `kevinbotlib ssh init` to create a new key[/red]"
-        )
-        raise click.Abort
-
-    private_key_path, _ = key_info[df.name]
-
-    # Load private key
-    try:
-        pkey = paramiko.RSAKey.from_private_key_file(private_key_path)
-    except Exception as e:
-        console.print(f"[red]Failed to load private key: {e}[/red]")
-        raise click.Abort from e
+    private_key_path, pkey = get_private_key(console, df)
 
     confirm_host_key_df(console, df, pkey)
 
@@ -97,7 +82,50 @@ def install_service(df_directory):
         ssh.close()
 
 
+@click.command("uninstall")
+@click.option(
+    "-d",
+    "--df-directory",
+    default=".",
+    help="Directory of the Deployfile",
+    type=click.Path(file_okay=False, dir_okay=True, writable=True),
+)
+def uninstall_service(df_directory: str):
+    """Uninstall the robot systemd service"""
+    df = deployfile.read_deployfile(Path(df_directory) / "Deployfile.toml")
+
+    private_key_path, pkey = get_private_key(console, df)
+
+    confirm_host_key_df(console, df, pkey)
+
+    with rich_spinner(console, "Uninstalling service over SSH") as spinner:
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
+        
+        check_systemd_ver(ssh)
+        check_service_file(df, ssh)
+
+        console.print("[bold red]Stopping service...[/bold red]")
+        ssh.exec_command(f"systemctl --user stop {df.name}.service")
+        console.print("[bold green]✔ Service stopped successfully[/bold green]")
+        
+        console.print("[bold red]Disabling service...[/bold red]")
+        ssh.exec_command(f"systemctl --user disable {df.name}.service")
+        console.print("[bold green]✔ Service disabled successfully[/bold green]")
+        
+        
+        console.print("[bold red]Removing service file...[/bold red]")
+        ssh.exec_command(f"rm -f ~/.config/systemd/user/{df.name}.service")
+        console.print("[bold green]✔ Service file removed successfully[/bold green]")
+        
+        console.print("[bold red]Reloading systemd...[/bold red]")
+        ssh.exec_command("systemctl --user daemon-reload")
+        console.print("[bold green]✔ Service uninstalled successfully[/bold green]")
+
+
 service_group.add_command(install_service)
+service_group.add_command(uninstall_service)
 
 
 def check_service_file(df, ssh):
