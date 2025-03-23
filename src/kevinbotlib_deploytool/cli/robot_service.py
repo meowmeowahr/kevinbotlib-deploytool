@@ -9,7 +9,6 @@ from kevinbotlib_deploytool import deployfile
 from kevinbotlib_deploytool.cli.common import confirm_host_key_df, get_private_key
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.service import ROBOT_SYSTEMD_USER_SERVICE_TEMPLATE
-from kevinbotlib_deploytool.sshkeys import SSHKeyManager
 
 console = Console()
 
@@ -42,7 +41,7 @@ def install_service(df_directory):
 
         # Check if systemd is available
         check_systemd_ver(ssh)
-        
+
         if check_service_file(df, ssh):
             console.print(
                 f"[yellow]User service file already exists at ~/.config/systemd/user/{df.name}.service. Overwriting...",
@@ -100,11 +99,11 @@ def uninstall_service(df_directory: str):
 
     confirm_host_key_df(console, df, pkey)
 
-    with rich_spinner(console, "Uninstalling service over SSH") as spinner:
+    with rich_spinner(console, "Uninstalling service over SSH"):
         ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
         ssh.connect(hostname=df.host, port=df.port, username=df.user, pkey=pkey, timeout=10)
-        
+
         check_systemd_ver(ssh)
         if check_service_file(df, ssh):
             console.print(
@@ -119,16 +118,15 @@ def uninstall_service(df_directory: str):
         console.print("[bold red]Stopping service...[/bold red]")
         ssh.exec_command(f"systemctl --user stop {df.name}.service")
         console.print("[bold green]✔ Service stopped successfully[/bold green]")
-        
+
         console.print("[bold red]Disabling service...[/bold red]")
         ssh.exec_command(f"systemctl --user disable {df.name}.service")
         console.print("[bold green]✔ Service disabled successfully[/bold green]")
-        
-        
+
         console.print("[bold red]Removing service file...[/bold red]")
         ssh.exec_command(f"rm -f ~/.config/systemd/user/{df.name}.service")
         console.print("[bold green]✔ Service file removed successfully[/bold green]")
-        
+
         console.print("[bold red]Reloading systemd...[/bold red]")
         ssh.exec_command("systemctl --user daemon-reload")
         console.print("[bold green]✔ Service uninstalled successfully[/bold green]")
