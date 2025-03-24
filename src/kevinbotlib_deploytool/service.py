@@ -11,4 +11,8 @@ ExecStart=/bin/bash -c "{{ exec }}; ret=$?; if [ $ret -eq 0 ] || [ $ret -eq 64 ]
 Restart=on-failure
 RestartSec=5
 KillSignal=SIGUSR1
+Environment='DEPLOY=true'
+
+[Install]
+WantedBy=multi-user.target 
 """
