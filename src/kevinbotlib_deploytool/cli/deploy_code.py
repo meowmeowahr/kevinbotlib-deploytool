@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
@@ -9,7 +11,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 
-from kevinbotlib_deploytool.cli.common import check_service_file, confirm_host_key_df, get_private_key
+from kevinbotlib_deploytool.cli.common import check_service_file, confirm_host_key_df, get_private_key, verbosity_option
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.deployfile import read_deployfile
 
@@ -24,7 +26,8 @@ console = Console()
     help="Directory of the Deployfile and robot code",
     type=click.Path(file_okay=False, dir_okay=True, writable=True),
 )
-def deploy_code_command(directory):
+@verbosity_option()
+def deploy_code_command(directory, verbose: int):
     """Package and deploy the robot code to the target system."""
     deployfile_path = Path(directory) / "Deployfile.toml"
     if not deployfile_path.exists():
@@ -51,6 +54,34 @@ def deploy_code_command(directory):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
+
+        # Build a wheel
+        wheel_task = None
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            console=console,
+        ) as progress:
+            wheel_task = progress.add_task("Building wheel", total=None)
+            try:
+                result = subprocess.run(
+                    ["hatch", "build", "-t", "wheel"],
+                    cwd=directory,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                wheel_file = result.stderr.splitlines()[-1]
+                if not wheel_file:
+                    console.print("[red]Failed to determine wheel file location.[/red]")
+                    raise click.Abort()
+                wheel_path = Path(directory) / wheel_file
+            except subprocess.CalledProcessError:
+                console.print("[red]Failed to build wheel.[/red]")
+                raise click.Abort()
+            progress.update(wheel_task, completed=100)
+
         tarball_path = tmp_path / "robot_code.tar.gz"
 
         with Progress(
@@ -88,6 +119,13 @@ def deploy_code_command(directory):
                         if readme_path.exists():
                             tar.add(readme_path, arcname=readme_path.name, filter=_exclude_pycache)
                             progress.update(tar_task, advance=1)
+
+                # Include built wheel
+                if not wheel_path.exists():
+                    console.print("[red]No wheel found in build output![/red]")
+                    raise click.Abort
+                tar.add(wheel_path, arcname=wheel_path.parts[-1])
+
             progress.update(tar_task, completed=100)
 
         with rich_spinner(console, "Connecting via SFTP", success_message="SFTP connection established"):
@@ -141,9 +179,9 @@ def deploy_code_command(directory):
             ssh.exec_command(f"mkdir -p {remote_code_dir} && tar -xzf {remote_tarball_path} -C {remote_code_dir}")
             ssh.exec_command(f"rm {remote_tarball_path}")
 
-        # Install code via pip install -e
-        cmd = f"~/{df.name}/env/bin/python3 -m pip install -e {remote_code_dir}"
-        stdin, stdout, stderr = ssh.exec_command(cmd)
+        # Install code via pip
+        cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''}"
+        _, stdout, stderr = ssh.exec_command(cmd)
         with console.status("[bold green]Installing code...[/bold green]"):
             while not stdout.channel.exit_status_ready():
                 line = stdout.readline()

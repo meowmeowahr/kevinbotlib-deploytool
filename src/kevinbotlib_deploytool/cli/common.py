@@ -69,3 +69,12 @@ def check_service_file(df, ssh):
     if result == "exists":
         return True
     return False
+
+def verbosity_option():
+    def decorator(f):
+        return click.option(
+            "-v", "--verbose",
+            count=True,
+            help="Increase verbosity level (-v, -vv, -vvv)"
+        )(f)
+    return decorator
