@@ -64,6 +64,7 @@ def deploy_code_command(directory, verbose: int):
             console=console,
         ) as progress:
             wheel_task = progress.add_task("Building wheel", total=None)
+            result = None
             try:
                 result = subprocess.run(
                     [sys.executable, "-m", "hatch", "build", "-t", "wheel"],
@@ -78,7 +79,8 @@ def deploy_code_command(directory, verbose: int):
                     raise click.Abort
                 wheel_path = Path(directory) / wheel_file
             except subprocess.CalledProcessError as e:
-                console.print("[red]Failed to build wheel.[/red]")
+                panel = Panel(f"[bold red]{repr(e)}[/bold red]\n{result.stdout if result else ''}{result.stderr if result else ''}", title="Failed to build wheel")
+                console.print(panel)
                 raise click.Abort from e
             progress.update(wheel_task, completed=100)
 
@@ -180,7 +182,7 @@ def deploy_code_command(directory, verbose: int):
             ssh.exec_command(f"rm {remote_tarball_path}")
 
         # Install code via pip
-        cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''}"
+        cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
         _, stdout, stderr = ssh.exec_command(cmd)
         with console.status("[bold green]Installing code...[/bold green]"):
             while not stdout.channel.exit_status_ready():
