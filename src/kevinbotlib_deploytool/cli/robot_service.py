@@ -179,7 +179,7 @@ def status_service(df_directory: str):
             console.print("[bold yellow]⚠️ Service has exited[/bold yellow]")
         else:
             console.print("[bold red]❌ Service status unknown[/bold red]")
-        console.print(result)
+        console.print(result, highlight=False)
         ssh.close()
 
 
