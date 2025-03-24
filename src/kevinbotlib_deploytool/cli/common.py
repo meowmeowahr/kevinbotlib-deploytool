@@ -61,6 +61,7 @@ def get_private_key(console: rich.console.Console, df):
         raise click.Abort from e
     return private_key_path, pkey
 
+
 def check_service_file(df, ssh):
     # Check for user service file in ~/.config/systemd/user/
     check_cmd = f"test -f ~/.config/systemd/user/{df.name}.service && echo exists || echo missing"
@@ -70,11 +71,9 @@ def check_service_file(df, ssh):
         return True
     return False
 
+
 def verbosity_option():
     def decorator(f):
-        return click.option(
-            "-v", "--verbose",
-            count=True,
-            help="Increase verbosity level (-v, -vv, -vvv)"
-        )(f)
+        return click.option("-v", "--verbose", count=True, help="Increase verbosity level (-v, -vv, -vvv)")(f)
+
     return decorator

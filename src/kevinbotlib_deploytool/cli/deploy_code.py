@@ -66,7 +66,7 @@ def deploy_code_command(directory, verbose: int):
             wheel_task = progress.add_task("Building wheel", total=None)
             try:
                 result = subprocess.run(
-                    ["hatch", "build", "-t", "wheel"],
+                    [sys.executable, "-m", "hatch", "build", "-t", "wheel"],
                     cwd=directory,
                     check=True,
                     capture_output=True,
@@ -75,11 +75,11 @@ def deploy_code_command(directory, verbose: int):
                 wheel_file = result.stderr.splitlines()[-1]
                 if not wheel_file:
                     console.print("[red]Failed to determine wheel file location.[/red]")
-                    raise click.Abort()
+                    raise click.Abort
                 wheel_path = Path(directory) / wheel_file
-            except subprocess.CalledProcessError:
+            except subprocess.CalledProcessError as e:
                 console.print("[red]Failed to build wheel.[/red]")
-                raise click.Abort()
+                raise click.Abort from e
             progress.update(wheel_task, completed=100)
 
         tarball_path = tmp_path / "robot_code.tar.gz"
@@ -142,7 +142,7 @@ def deploy_code_command(directory, verbose: int):
 
         if check_service_file(df, ssh):
             with rich_spinner(console, "Stopping robot code", success_message="Robot code stopped"):
-                    ssh.exec_command(f"systemctl stop --user {df.name}.service")
+                ssh.exec_command(f"systemctl stop --user {df.name}.service")
         else:
             console.print(
                 f"[yellow]No service file found for {df.name} — run `kevinbotlib-deploytool robot service install` to add it.[/yellow]"
@@ -192,7 +192,7 @@ def deploy_code_command(directory, verbose: int):
             error = stderr.read().decode()
             console.print(Panel(f"[red]Command failed: {cmd}\n\n{error}", title="Command Error"))
             raise click.Abort
-        
+
         # Restart the robot code
         if check_service_file(df, ssh):
             with rich_spinner(console, "Starting robot code", success_message="Robot code started"):
