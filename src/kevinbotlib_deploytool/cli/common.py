@@ -60,3 +60,12 @@ def get_private_key(console: rich.console.Console, df):
         console.print(f"[red]Failed to load private key: {e}[/red]")
         raise click.Abort from e
     return private_key_path, pkey
+
+def check_service_file(df, ssh):
+    # Check for user service file in ~/.config/systemd/user/
+    check_cmd = f"test -f ~/.config/systemd/user/{df.name}.service && echo exists || echo missing"
+    _, stdout, _ = ssh.exec_command(check_cmd)
+    result = stdout.read().decode().strip()
+    if result == "exists":
+        return True
+    return False

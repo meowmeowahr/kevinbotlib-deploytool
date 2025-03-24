@@ -6,7 +6,7 @@ import paramiko
 from rich.console import Console
 
 from kevinbotlib_deploytool import deployfile
-from kevinbotlib_deploytool.cli.common import confirm_host_key_df, get_private_key
+from kevinbotlib_deploytool.cli.common import check_service_file, confirm_host_key_df, get_private_key
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.service import ROBOT_SYSTEMD_USER_SERVICE_TEMPLATE
 
@@ -303,16 +303,6 @@ service_group.add_command(status_service)
 service_group.add_command(stop_service)
 service_group.add_command(estop_service)
 service_group.add_command(start_service)
-
-
-def check_service_file(df, ssh):
-    # Check for user service file in ~/.config/systemd/user/
-    check_cmd = f"test -f ~/.config/systemd/user/{df.name}.service && echo exists || echo missing"
-    _, stdout, _ = ssh.exec_command(check_cmd)
-    result = stdout.read().decode().strip()
-    if result == "exists":
-        return True
-    return False
 
 
 def check_systemd_ver(ssh: paramiko.SSHClient):

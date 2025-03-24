@@ -9,4 +9,5 @@ WorkingDirectory={{ working_directory }}
 ExecStart={{ exec }}
 Restart=on-failure
 RestartSec=5
+KillSignal=SIGUSR1
 """

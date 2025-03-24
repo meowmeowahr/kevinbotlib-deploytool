@@ -7,9 +7,9 @@ import paramiko
 import toml
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 
-from kevinbotlib_deploytool.cli.common import confirm_host_key_df, get_private_key
+from kevinbotlib_deploytool.cli.common import check_service_file, confirm_host_key_df, get_private_key
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.deployfile import read_deployfile
 
@@ -53,32 +53,44 @@ def deploy_code_command(directory):
         tmp_path = Path(tmpdir)
         tarball_path = tmp_path / "robot_code.tar.gz"
 
-        with rich_spinner(console, "Creating code tarball", success_message="Code tarball created"):
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            console=console,
+        ) as progress:
+            tar_task = progress.add_task("Creating code tarball", total=None)
             project_root = Path(directory)
             with tarfile.open(tarball_path, "w:gz") as tar:
                 src_path = project_root / "src"
                 if src_path.exists():
                     tar.add(src_path, arcname="src", filter=_exclude_pycache)
+                    progress.update(tar_task, advance=1)
 
                 assets_path = project_root / "assets"
                 if assets_path.exists():
                     tar.add(assets_path, arcname="assets", filter=_exclude_pycache)
+                    progress.update(tar_task, advance=1)
 
                 deploy_path = project_root / "deploy"
                 if deploy_path.exists():
                     tar.add(deploy_path, arcname="deploy", filter=_exclude_pycache)
+                    progress.update(tar_task, advance=1)
 
                 pyproject_path = project_root / "pyproject.toml"
                 if pyproject_path.exists():
                     tar.add(pyproject_path, arcname="pyproject.toml")
+                    progress.update(tar_task, advance=1)
                     # this is to be compatible with hatchling
                     pyproject = toml.load(pyproject_path)
                     if "project" in pyproject and "readme" in pyproject["project"]:
                         readme_path = project_root / pyproject["project"]["readme"]
                         if readme_path.exists():
                             tar.add(readme_path, arcname=readme_path.name, filter=_exclude_pycache)
+                            progress.update(tar_task, advance=1)
+            progress.update(tar_task, completed=100)
 
-        with rich_spinner(console, "Connecting via SSH", success_message="SSH connection established"):
+        with rich_spinner(console, "Connecting via SFTP", success_message="SFTP connection established"):
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())  # noqa: S507 # * this is ok, because the user is asked beforehand
             pkey = paramiko.RSAKey.from_private_key_file(private_key_path)
@@ -90,6 +102,14 @@ def deploy_code_command(directory):
 
         sftp_makedirs(sftp, f"/home/{df.user}/{df.name}")
 
+        if check_service_file(df, ssh):
+            with rich_spinner(console, "Stopping robot code", success_message="Robot code stopped"):
+                    ssh.exec_command(f"systemctl stop --user {df.name}.service")
+        else:
+            console.print(
+                f"[yellow]No service file found for {df.name} — run `kevinbotlib-deploytool robot service install` to add it.[/yellow]"
+            )
+
         # Delete old code on the remote
         with rich_spinner(console, "Deleting old code on remote", success_message="Old code deleted"):
             ssh.exec_command(f"rm -rf {remote_code_dir}")
@@ -99,6 +119,8 @@ def deploy_code_command(directory):
             TextColumn("[progress.description]{task.description}"),
             BarColumn(),
             TimeElapsedColumn(),
+            TextColumn("ETA:"),
+            TimeRemainingColumn(),
             console=console,
         ) as progress:
             upload_task = progress.add_task("Uploading code tarball", total=tarball_path.stat().st_size)
@@ -132,6 +154,15 @@ def deploy_code_command(directory):
             error = stderr.read().decode()
             console.print(Panel(f"[red]Command failed: {cmd}\n\n{error}", title="Command Error"))
             raise click.Abort
+        
+        # Restart the robot code
+        if check_service_file(df, ssh):
+            with rich_spinner(console, "Starting robot code", success_message="Robot code started"):
+                ssh.exec_command(f"systemctl start --user {df.name}.service")
+        else:
+            console.print(
+                f"[yellow]No service file found for {df.name} — run `kevinbotlib-deploytool robot service install` to add it.[/yellow]"
+            )
 
         console.print(f"[bold green]\u2714 Robot code deployed to {remote_code_dir}[/bold green]")
         ssh.close()
