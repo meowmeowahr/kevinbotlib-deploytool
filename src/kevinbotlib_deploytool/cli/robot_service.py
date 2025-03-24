@@ -291,9 +291,9 @@ def start_service(df_directory: str):
             )
             return
 
-        console.print("[bold red]Stopping service...[/bold red]")
+        console.print("[green]Starting service...[/green]")
         ssh.exec_command(f"systemctl --user start {df.name}.service")
-        console.print("[bold green]✔ Service stopped successfully[/bold green]")
+        console.print("[bold green]✔ Service started successfully[/bold green]")
         ssh.close()
 
 
