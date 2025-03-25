@@ -14,5 +14,5 @@ KillSignal=SIGUSR1
 Environment='DEPLOY=true'
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 """
