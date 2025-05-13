@@ -1,3 +1,4 @@
+from calendar import c
 import subprocess
 import sys
 import tarfile
@@ -26,8 +27,16 @@ console = Console()
     help="Directory of the Deployfile and robot code",
     type=click.Path(file_okay=False, dir_okay=True, writable=True),
 )
+@click.option(
+    "-W",
+    "--custom-wheels",
+    default=[],
+    help="Custom wheels to install on the remote system",
+    type=click.Path(file_okay=True, dir_okay=False, readable=True),
+    multiple=True,
+)
 @verbosity_option()
-def deploy_code_command(directory, verbose: int):
+def deploy_code_command(directory, custom_wheels: list, verbose: int):
     """Package and deploy the robot code to the target system."""
     deployfile_path = Path(directory) / "Deployfile.toml"
     if not deployfile_path.exists():
@@ -35,6 +44,8 @@ def deploy_code_command(directory, verbose: int):
         raise click.Abort
 
     df = read_deployfile(deployfile_path)
+    if custom_wheels:
+        console.print(f"Will install custom wheels: {custom_wheels}")
 
     # check for src/name/__main__.py
     src_path = Path(directory) / "src" / df.name.replace("-", "_")
@@ -128,6 +139,20 @@ def deploy_code_command(directory, verbose: int):
                     raise click.Abort
                 tar.add(wheel_path, arcname=wheel_path.parts[-1])
 
+                # custom wheels
+                if custom_wheels:
+                    # add wheels to cwheels directory in the tarball
+                    tar.add(wheel_path, arcname=f"cwheels/{wheel_path.parts[-1]}")
+                    progress.update(tar_task, advance=1)
+                for wheel in custom_wheels:
+                    wheel_path = Path(wheel).resolve()
+                    if not wheel_path.exists():
+                        console.print(f"[red]Custom wheel not found: {wheel_path}[/red]")
+                        raise click.Abort
+                    tar.add(wheel_path, arcname=f"cwheels/{wheel_path.parts[-1]}")
+                    progress.update(tar_task, advance=1)
+
+
             progress.update(tar_task, completed=100)
 
         with rich_spinner(console, "Connecting via SFTP", success_message="SFTP connection established"):
@@ -182,7 +207,7 @@ def deploy_code_command(directory, verbose: int):
             ssh.exec_command(f"rm {remote_tarball_path}")
 
         # Install code via pip
-        cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
+        cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
         _, stdout, stderr = ssh.exec_command(cmd)
         with console.status("[bold green]Installing code...[/bold green]"):
             while not stdout.channel.exit_status_ready():
@@ -194,6 +219,23 @@ def deploy_code_command(directory, verbose: int):
             error = stderr.read().decode()
             console.print(Panel(f"[red]Command failed: {cmd}\n\n{error}", title="Command Error"))
             raise click.Abort
+
+        # Install custom wheels with pip
+        if custom_wheels:
+            for wheel in custom_wheels:
+                wheel_name = Path(wheel).name
+                cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_name} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_name} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
+                _, stdout, stderr = ssh.exec_command(cmd)
+                with console.status(f"[bold green]Installing custom wheel {wheel_name}...[/bold green]"):
+                    while not stdout.channel.exit_status_ready():
+                        line = stdout.readline()
+                        if line:
+                            console.print(line.strip())
+                exit_code = stdout.channel.recv_exit_status()
+                if exit_code != 0:
+                    error = stderr.read().decode()
+                    console.print(Panel(f"[red]Command failed: {cmd}\n\n{error}", title="Command Error"))
+                    raise click.Abort
 
         # Restart the robot code
         if check_service_file(df, ssh):
