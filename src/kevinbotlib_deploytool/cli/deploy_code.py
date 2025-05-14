@@ -145,11 +145,11 @@ def deploy_code_command(directory, custom_wheels: list, verbose: int):
                     tar.add(wheel_path, arcname=f"cwheels/{wheel_path.parts[-1]}")
                     progress.update(tar_task, advance=1)
                 for wheel in custom_wheels:
-                    wheel_path = Path(wheel).resolve()
-                    if not wheel_path.exists():
-                        console.print(f"[red]Custom wheel not found: {wheel_path}[/red]")
+                    cwheel_path = Path(wheel).resolve()
+                    if not cwheel_path.exists():
+                        console.print(f"[red]Custom wheel not found: {cwheel_path}[/red]")
                         raise click.Abort
-                    tar.add(wheel_path, arcname=f"cwheels/{wheel_path.parts[-1]}")
+                    tar.add(cwheel_path, arcname=f"cwheels/{cwheel_path.parts[-1]}")
                     progress.update(tar_task, advance=1)
 
 
@@ -207,7 +207,7 @@ def deploy_code_command(directory, custom_wheels: list, verbose: int):
             ssh.exec_command(f"rm {remote_tarball_path}")
 
         # Install code via pip
-        cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
+        cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
         _, stdout, stderr = ssh.exec_command(cmd)
         with console.status("[bold green]Installing code...[/bold green]"):
             while not stdout.channel.exit_status_ready():
