@@ -1,4 +1,3 @@
-from calendar import c
 import subprocess
 import sys
 import tarfile
@@ -35,8 +34,13 @@ console = Console()
     type=click.Path(file_okay=True, dir_okay=False, readable=True),
     multiple=True,
 )
+@click.option(
+    "-N",
+    "--no-service-start",
+    is_flag=True,
+)
 @verbosity_option()
-def deploy_code_command(directory, custom_wheels: list, verbose: int):
+def deploy_code_command(directory, custom_wheels: list, verbose: int, *, no_service_start: bool):
     """Package and deploy the robot code to the target system."""
     deployfile_path = Path(directory) / "Deployfile.toml"
     if not deployfile_path.exists():
@@ -90,7 +94,7 @@ def deploy_code_command(directory, custom_wheels: list, verbose: int):
                     raise click.Abort
                 wheel_path = Path(directory) / wheel_file
             except subprocess.CalledProcessError as e:
-                panel = Panel(f"[bold red]{repr(e)}[/bold red]\n{result.stdout if result else ''}{result.stderr if result else ''}", title="Failed to build wheel")
+                panel = Panel(f"[bold red]{e!r}[/bold red]\n{result.stdout if result else ''}{result.stderr if result else ''}", title="Failed to build wheel")
                 console.print(panel)
                 raise click.Abort from e
             progress.update(wheel_task, completed=100)
@@ -238,13 +242,14 @@ def deploy_code_command(directory, custom_wheels: list, verbose: int):
                     raise click.Abort
 
         # Restart the robot code
-        if check_service_file(df, ssh):
-            with rich_spinner(console, "Starting robot code", success_message="Robot code started"):
-                ssh.exec_command(f"systemctl start --user {df.name}.service")
-        else:
-            console.print(
-                f"[yellow]No service file found for {df.name} — run `kevinbotlib-deploytool robot service install` to add it.[/yellow]"
-            )
+        if not no_service_start:
+            if check_service_file(df, ssh):
+                with rich_spinner(console, "Starting robot code", success_message="Robot code started"):
+                    ssh.exec_command(f"systemctl start --user {df.name}.service")
+            else:
+                console.print(
+                    f"[yellow]No service file found for {df.name} — run `kevinbotlib-deploytool robot service install` to add it.[/yellow]"
+                )
 
         console.print(f"[bold green]\u2714 Robot code deployed to {remote_code_dir}[/bold green]")
         ssh.close()
