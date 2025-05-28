@@ -1,3 +1,6 @@
+import datetime
+import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -6,11 +9,13 @@ from pathlib import Path
 
 import click
 import paramiko
+import pygit2
 import toml
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 
+from kevinbotlib_deploytool import __about__
 from kevinbotlib_deploytool.cli.common import check_service_file, confirm_host_key_df, get_private_key, verbosity_option
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.deployfile import read_deployfile
@@ -69,6 +74,54 @@ def deploy_code_command(directory, custom_wheels: list, verbose: int, *, no_serv
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
+
+        # Generate manifest
+        repo = pygit2.Repository(os.path.join(directory, ".git"))
+
+        head_ref = repo.head
+        head_name = repo.head.name  # e.g., 'refs/heads/main' or 'HEAD' (if detached)
+        head_target = repo.head.target  # OID of the commit
+
+        # Determine if HEAD is pointing to a branch
+        if head_name.startswith("refs/heads/"):
+            current_branch = head_name.split("/")[-1]
+        else:
+            current_branch = None  # Detached HEAD
+
+        latest_commit = repo[head_ref.target]
+
+        # Check if the working directory is dirty (has uncommitted changes)
+        status = repo.status()
+        is_dirty = bool(status)
+
+        current_tag = None
+        if not is_dirty:
+            for ref in repo.references:
+                if ref.startswith("refs/tags/"):
+                    tag_ref = repo.references[ref]
+                    tag_obj = repo[tag_ref.target]
+                    tag_target = (
+                        tag_obj.target
+                        if isinstance(tag_obj, pygit2.Tag)
+                        else tag_obj.oid
+                    )
+                    if tag_target == latest_commit.id:
+                        current_tag = ref.split("/")[-1]
+                        break
+
+        manifest = {
+            "deploytool": __about__.__version__,
+            "timestamp": datetime.datetime.now(datetime.timezone.utc).timestamp(),
+            "git": {
+                "branch": current_branch if current_branch else "DETACHED-HEAD",
+                "tag": current_tag,
+                "commit": str(latest_commit.id) + ("-dirty" if is_dirty else ""),
+            },
+            "robot": df.name
+        }
+
+        with open(tmp_path / "manifest.json", "w") as f:
+            f.write(json.dumps(manifest))
 
         # Build a wheel
         wheel_task = None
@@ -136,6 +189,9 @@ def deploy_code_command(directory, custom_wheels: list, verbose: int, *, no_serv
                         if readme_path.exists():
                             tar.add(readme_path, arcname=readme_path.name, filter=_exclude_pycache)
                             progress.update(tar_task, advance=1)
+
+                # Include manifest
+                tar.add(tmp_path / "manifest.json", arcname="deploy/manifest.json")
 
                 # Include built wheel
                 if not wheel_path.exists():
