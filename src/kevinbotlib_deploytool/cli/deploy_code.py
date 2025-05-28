@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
@@ -9,7 +11,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn, TimeElapsedColumn, TimeRemainingColumn
 
-from kevinbotlib_deploytool.cli.common import check_service_file, confirm_host_key_df, get_private_key
+from kevinbotlib_deploytool.cli.common import check_service_file, confirm_host_key_df, get_private_key, verbosity_option
 from kevinbotlib_deploytool.cli.spinner import rich_spinner
 from kevinbotlib_deploytool.deployfile import read_deployfile
 
@@ -24,7 +26,21 @@ console = Console()
     help="Directory of the Deployfile and robot code",
     type=click.Path(file_okay=False, dir_okay=True, writable=True),
 )
-def deploy_code_command(directory):
+@click.option(
+    "-W",
+    "--custom-wheels",
+    default=[],
+    help="Custom wheels to install on the remote system",
+    type=click.Path(file_okay=True, dir_okay=False, readable=True),
+    multiple=True,
+)
+@click.option(
+    "-N",
+    "--no-service-start",
+    is_flag=True,
+)
+@verbosity_option()
+def deploy_code_command(directory, custom_wheels: list, verbose: int, *, no_service_start: bool):
     """Package and deploy the robot code to the target system."""
     deployfile_path = Path(directory) / "Deployfile.toml"
     if not deployfile_path.exists():
@@ -32,6 +48,8 @@ def deploy_code_command(directory):
         raise click.Abort
 
     df = read_deployfile(deployfile_path)
+    if custom_wheels:
+        console.print(f"Will install custom wheels: {custom_wheels}")
 
     # check for src/name/__main__.py
     src_path = Path(directory) / "src" / df.name.replace("-", "_")
@@ -51,6 +69,36 @@ def deploy_code_command(directory):
 
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_path = Path(tmpdir)
+
+        # Build a wheel
+        wheel_task = None
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            console=console,
+        ) as progress:
+            wheel_task = progress.add_task("Building wheel", total=None)
+            result = None
+            try:
+                result = subprocess.run(
+                    [sys.executable, "-m", "hatch", "build", "-t", "wheel"],
+                    cwd=directory,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                wheel_file = result.stderr.splitlines()[-1]
+                if not wheel_file:
+                    console.print("[red]Failed to determine wheel file location.[/red]")
+                    raise click.Abort
+                wheel_path = Path(directory) / wheel_file
+            except subprocess.CalledProcessError as e:
+                panel = Panel(f"[bold red]{e!r}[/bold red]\n{result.stdout if result else ''}{result.stderr if result else ''}", title="Failed to build wheel")
+                console.print(panel)
+                raise click.Abort from e
+            progress.update(wheel_task, completed=100)
+
         tarball_path = tmp_path / "robot_code.tar.gz"
 
         with Progress(
@@ -88,6 +136,27 @@ def deploy_code_command(directory):
                         if readme_path.exists():
                             tar.add(readme_path, arcname=readme_path.name, filter=_exclude_pycache)
                             progress.update(tar_task, advance=1)
+
+                # Include built wheel
+                if not wheel_path.exists():
+                    console.print("[red]No wheel found in build output![/red]")
+                    raise click.Abort
+                tar.add(wheel_path, arcname=wheel_path.parts[-1])
+
+                # custom wheels
+                if custom_wheels:
+                    # add wheels to cwheels directory in the tarball
+                    tar.add(wheel_path, arcname=f"cwheels/{wheel_path.parts[-1]}")
+                    progress.update(tar_task, advance=1)
+                for wheel in custom_wheels:
+                    cwheel_path = Path(wheel).resolve()
+                    if not cwheel_path.exists():
+                        console.print(f"[red]Custom wheel not found: {cwheel_path}[/red]")
+                        raise click.Abort
+                    tar.add(cwheel_path, arcname=f"cwheels/{cwheel_path.parts[-1]}")
+                    progress.update(tar_task, advance=1)
+
+
             progress.update(tar_task, completed=100)
 
         with rich_spinner(console, "Connecting via SFTP", success_message="SFTP connection established"):
@@ -104,7 +173,7 @@ def deploy_code_command(directory):
 
         if check_service_file(df, ssh):
             with rich_spinner(console, "Stopping robot code", success_message="Robot code stopped"):
-                    ssh.exec_command(f"systemctl stop --user {df.name}.service")
+                ssh.exec_command(f"systemctl stop --user {df.name}.service")
         else:
             console.print(
                 f"[yellow]No service file found for {df.name} — run `kevinbotlib-deploytool robot service install` to add it.[/yellow]"
@@ -141,9 +210,33 @@ def deploy_code_command(directory):
             ssh.exec_command(f"mkdir -p {remote_code_dir} && tar -xzf {remote_tarball_path} -C {remote_code_dir}")
             ssh.exec_command(f"rm {remote_tarball_path}")
 
-        # Install code via pip install -e
-        cmd = f"~/{df.name}/env/bin/python3 -m pip install -e {remote_code_dir}"
-        stdin, stdout, stderr = ssh.exec_command(cmd)
+        # Install custom wheels with pip
+        if custom_wheels:
+            for wheel in custom_wheels:
+                wheel_name = Path(wheel).name
+                cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_name} {'-' + 'v' * verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_name} {'-' + 'v' * verbose if verbose else ''} --force-reinstall --no-deps"
+                _, stdout, stderr = ssh.exec_command(cmd)
+                with console.status(
+                    f"[bold green]Installing custom wheel {wheel_name}...[/bold green]"
+                ):
+                    while not stdout.channel.exit_status_ready():
+                        line = stdout.readline()
+                        if line:
+                            console.print(line.strip())
+                exit_code = stdout.channel.recv_exit_status()
+                if exit_code != 0:
+                    error = stderr.read().decode()
+                    console.print(
+                        Panel(
+                            f"[red]Command failed: {cmd}\n\n{error}",
+                            title="Command Error",
+                        )
+                    )
+                    raise click.Abort
+
+        # Install code via pip
+        cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
+        _, stdout, stderr = ssh.exec_command(cmd)
         with console.status("[bold green]Installing code...[/bold green]"):
             while not stdout.channel.exit_status_ready():
                 line = stdout.readline()
@@ -154,15 +247,17 @@ def deploy_code_command(directory):
             error = stderr.read().decode()
             console.print(Panel(f"[red]Command failed: {cmd}\n\n{error}", title="Command Error"))
             raise click.Abort
-        
+
+
         # Restart the robot code
-        if check_service_file(df, ssh):
-            with rich_spinner(console, "Starting robot code", success_message="Robot code started"):
-                ssh.exec_command(f"systemctl start --user {df.name}.service")
-        else:
-            console.print(
-                f"[yellow]No service file found for {df.name} — run `kevinbotlib-deploytool robot service install` to add it.[/yellow]"
-            )
+        if not no_service_start:
+            if check_service_file(df, ssh):
+                with rich_spinner(console, "Starting robot code", success_message="Robot code started"):
+                    ssh.exec_command(f"systemctl start --user {df.name}.service")
+            else:
+                console.print(
+                    f"[yellow]No service file found for {df.name} — run `kevinbotlib-deploytool robot service install` to add it.[/yellow]"
+                )
 
         console.print(f"[bold green]\u2714 Robot code deployed to {remote_code_dir}[/bold green]")
         ssh.close()
