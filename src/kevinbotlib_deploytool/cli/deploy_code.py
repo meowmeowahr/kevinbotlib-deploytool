@@ -210,6 +210,30 @@ def deploy_code_command(directory, custom_wheels: list, verbose: int, *, no_serv
             ssh.exec_command(f"mkdir -p {remote_code_dir} && tar -xzf {remote_tarball_path} -C {remote_code_dir}")
             ssh.exec_command(f"rm {remote_tarball_path}")
 
+        # Install custom wheels with pip
+        if custom_wheels:
+            for wheel in custom_wheels:
+                wheel_name = Path(wheel).name
+                cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_name} {'-' + 'v' * verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_name} {'-' + 'v' * verbose if verbose else ''} --force-reinstall --no-deps"
+                _, stdout, stderr = ssh.exec_command(cmd)
+                with console.status(
+                    f"[bold green]Installing custom wheel {wheel_name}...[/bold green]"
+                ):
+                    while not stdout.channel.exit_status_ready():
+                        line = stdout.readline()
+                        if line:
+                            console.print(line.strip())
+                exit_code = stdout.channel.recv_exit_status()
+                if exit_code != 0:
+                    error = stderr.read().decode()
+                    console.print(
+                        Panel(
+                            f"[red]Command failed: {cmd}\n\n{error}",
+                            title="Command Error",
+                        )
+                    )
+                    raise click.Abort
+
         # Install code via pip
         cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/{wheel_path.parts[-1]} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
         _, stdout, stderr = ssh.exec_command(cmd)
@@ -224,22 +248,6 @@ def deploy_code_command(directory, custom_wheels: list, verbose: int, *, no_serv
             console.print(Panel(f"[red]Command failed: {cmd}\n\n{error}", title="Command Error"))
             raise click.Abort
 
-        # Install custom wheels with pip
-        if custom_wheels:
-            for wheel in custom_wheels:
-                wheel_name = Path(wheel).name
-                cmd = f"~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_name} {'-' + 'v'*verbose if verbose else ''} && ~/{df.name}/env/bin/python3 -m pip install {remote_code_dir}/cwheels/{wheel_name} {'-' + 'v'*verbose if verbose else ''} --force-reinstall --no-deps"
-                _, stdout, stderr = ssh.exec_command(cmd)
-                with console.status(f"[bold green]Installing custom wheel {wheel_name}...[/bold green]"):
-                    while not stdout.channel.exit_status_ready():
-                        line = stdout.readline()
-                        if line:
-                            console.print(line.strip())
-                exit_code = stdout.channel.recv_exit_status()
-                if exit_code != 0:
-                    error = stderr.read().decode()
-                    console.print(Panel(f"[red]Command failed: {cmd}\n\n{error}", title="Command Error"))
-                    raise click.Abort
 
         # Restart the robot code
         if not no_service_start:
