@@ -1,3 +1,6 @@
+> [!WARNING]
+> This tool has moved into the [main KevinbotLib repo](https://github.com/meowmeowahr/kevinbotlib).
+
 # KevinbotLib DeployTool
 
 [![PyPI - Version](https://img.shields.io/pypi/v/kevinbotlib-deploytool.svg)](https://pypi.org/project/kevinbotlib-deploytool)
